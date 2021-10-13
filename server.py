@@ -45,7 +45,6 @@ class Server(http.server.SimpleHTTPRequestHandler):
                 old_archives = json.loads(all_text)
 
             for user in old_archives:
-                print(user)
                 if user["registration"] == post_data["registration"]:
                     self.send_response(400)
                     self.send_header("Content-type", "application/json")
@@ -67,6 +66,42 @@ class Server(http.server.SimpleHTTPRequestHandler):
             res = {
                 "data": post_data,
                 "status": "success"
+            }
+            return self.wfile.write(json.dumps(res).encode())
+        elif self.path == '/login':
+            content_length = int(self.headers['Content-Length']) 
+            post_data = json.loads(self.rfile.read(content_length))
+            db = open("text.txt", "r")
+
+            old_archives = db.readlines()
+            if not old_archives:
+                old_archives = []
+            else:
+                all_text = ""
+                for text in old_archives:
+                    all_text += text
+                old_archives = json.loads(all_text)
+
+            for user in old_archives:
+                print(user)
+                if user["registration"] == post_data["registration"]:
+                    if user["password"] == post_data["password"]:
+                        self.send_response(200)
+                        self.send_header("Content-type", "application/json")
+                        self.end_headers()
+                        res = {
+                            "status": "success",
+                            "message": "user authenticated"
+                        }
+                        return self.wfile.write(json.dumps(res).encode())
+            db.close()
+
+            self.send_response(401)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            res = {
+                "status": "fail",
+                "message": "user unauthenticated"
             }
             return self.wfile.write(json.dumps(res).encode())
 
