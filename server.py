@@ -35,6 +35,24 @@ class Server(http.server.SimpleHTTPRequestHandler):
             post_data = json.loads(self.rfile.read(content_length))
             db = open("text.txt", "r")
 
+            # Verifica integridade do objeto
+            if not (
+                "name" in post_data.keys() and 
+                "registration" in post_data.keys() and
+                "adress" in post_data.keys() and
+                "password" in post_data.keys() and
+                "rg" in post_data.keys()
+            ):
+                self.send_response(400)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                res = {
+                    "status": "fail",
+                    "message": "missing data"
+                }
+                return self.wfile.write(json.dumps(res).encode())
+
+            # Verifica o banco de dados
             old_archives = db.readlines()
             if not old_archives:
                 old_archives = []
@@ -50,8 +68,8 @@ class Server(http.server.SimpleHTTPRequestHandler):
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
                     res = {
-                        "data": "",
-                        "status": "faill"
+                        "status": "faill",
+                        "message": "user already exists"
                     }
                     return self.wfile.write(json.dumps(res).encode())
             old_archives.append(post_data)
@@ -83,7 +101,6 @@ class Server(http.server.SimpleHTTPRequestHandler):
                 old_archives = json.loads(all_text)
 
             for user in old_archives:
-                print(user)
                 if user["registration"] == post_data["registration"]:
                     if user["password"] == post_data["password"]:
                         self.send_response(200)
