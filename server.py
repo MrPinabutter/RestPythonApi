@@ -4,15 +4,46 @@ import json
 
 class Server(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
-        if self.path == '/':
+        if self.path == '/': 
             self.send_response(404)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-        elif self.path == '/users':
-            self.send_response(200)
+        elif self.path == '/users': 
             db = open("text.txt", "r")
 
             old_archives = db.readlines()
+            db.close()
+
+            if not old_archives:
+                old_archives = []
+            else:
+                all_text = ""
+                for text in old_archives:
+                    all_text += text
+                old_archives = json.loads(all_text)
+
+            self.send_response(200)
+            self.send_header('Content-type','application/json')
+            self.end_headers()
+            
+            for it in old_archives:
+                del it["password"]
+                del it["adress"]
+                del it["rg"]
+
+            res = {
+                "data": old_archives,
+                "status": "success"
+            }
+            return self.wfile.write(json.dumps(res).encode())
+        elif '/users/' in self.path:
+            query = self.path[7:]
+
+            db = open("text.txt", "r")
+
+            old_archives = db.readlines()
+            db.close()
+
             if not old_archives:
                 old_archives = []
             else:
@@ -21,19 +52,38 @@ class Server(http.server.SimpleHTTPRequestHandler):
                     all_text += text
                 old_archives = json.loads(all_text)
             
-            self.send_header('Content-type','application/json')
+            for it in old_archives:
+                if it["registration"] == query:
+                    self.send_response(200)
+                    self.send_header('Content-type','application/json')
+                    self.end_headers()
+
+                    del it["password"]
+
+                    res = {
+                        "data": it,
+                        "status": "success"
+                    }
+                    return self.wfile.write(json.dumps(res).encode())
+            self.send_response(404)
+            self.send_header("Content-type", "application/json")
             self.end_headers()
+
             res = {
-                "data": old_archives,
-                "status": "success"
+                "status": "fail",
+                "message": "user not found"
             }
+
             return self.wfile.write(json.dumps(res).encode())
 
     def do_POST(self):
         if self.path == '/users':
             content_length = int(self.headers['Content-Length']) 
             post_data = json.loads(self.rfile.read(content_length))
+
             db = open("text.txt", "r")
+            old_archives = db.readlines()
+            db.close()
 
             # Verifica integridade do objeto
             if not (
@@ -46,6 +96,7 @@ class Server(http.server.SimpleHTTPRequestHandler):
                 self.send_response(400)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
+                
                 res = {
                     "status": "fail",
                     "message": "missing data"
@@ -53,7 +104,6 @@ class Server(http.server.SimpleHTTPRequestHandler):
                 return self.wfile.write(json.dumps(res).encode())
 
             # Verifica o banco de dados
-            old_archives = db.readlines()
             if not old_archives:
                 old_archives = []
             else:
@@ -64,23 +114,28 @@ class Server(http.server.SimpleHTTPRequestHandler):
 
             for user in old_archives:
                 if user["registration"] == post_data["registration"]:
+
                     self.send_response(400)
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
+
                     res = {
                         "status": "faill",
                         "message": "user already exists"
                     }
+
                     return self.wfile.write(json.dumps(res).encode())
+
             old_archives.append(post_data)
-            db.close()
 
             db = open("text.txt", "w")
             db.writelines(json.dumps(old_archives))
             db.close()
+
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
+
             res = {
                 "data": post_data,
                 "status": "success"
@@ -92,6 +147,8 @@ class Server(http.server.SimpleHTTPRequestHandler):
             db = open("text.txt", "r")
 
             old_archives = db.readlines()
+            db.close()
+
             if not old_archives:
                 old_archives = []
             else:
@@ -106,29 +163,34 @@ class Server(http.server.SimpleHTTPRequestHandler):
                         self.send_response(200)
                         self.send_header("Content-type", "application/json")
                         self.end_headers()
+
                         res = {
                             "status": "success",
                             "message": "user authenticated"
                         }
+
                         return self.wfile.write(json.dumps(res).encode())
-            db.close()
 
             self.send_response(401)
             self.send_header("Content-type", "application/json")
             self.end_headers()
+
             res = {
                 "status": "fail",
                 "message": "user unauthenticated"
             }
+
             return self.wfile.write(json.dumps(res).encode())
 
-    def do_PATCH(self):
+    def do_PUT(self):
         if self.path == '/users':
             content_length = int(self.headers['Content-Length']) 
             post_data = json.loads(self.rfile.read(content_length))
+
             db = open("text.txt", "r")
 
             old_archives = db.readlines()
+            db.close()
             if not old_archives:
                 old_archives = []
             else:
@@ -144,7 +206,9 @@ class Server(http.server.SimpleHTTPRequestHandler):
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
                     
-                    copy[idx] = post_data
+                    copy[idx]['name'] = post_data['name']
+                    copy[idx]['adress'] = post_data['adress']
+                    copy[idx]['rg'] = post_data['rg']
 
                     db = open("text.txt", "w")
                     db.writelines(json.dumps(copy))
@@ -156,14 +220,16 @@ class Server(http.server.SimpleHTTPRequestHandler):
                     }
                     
                     return self.wfile.write(json.dumps(res).encode())
-            db.close()
+
             self.send_response(404)
             self.send_header("Content-type", "application/json")
             self.end_headers()
+
             res = {
-                "data": "",
+                "message": "user does not exists",
                 "status": "not found"
             }
+
             return self.wfile.write(json.dumps(res).encode())
     
     def do_DELETE(self):
@@ -173,6 +239,8 @@ class Server(http.server.SimpleHTTPRequestHandler):
             db = open("text.txt", "r")
 
             old_archives = db.readlines()
+            db.close()
+
             if not old_archives:
                 old_archives = []
             else:
@@ -200,23 +268,86 @@ class Server(http.server.SimpleHTTPRequestHandler):
                     }
                     
                     return self.wfile.write(json.dumps(res).encode())
-            db.close()
+
             self.send_response(404)
             self.send_header("Content-type", "application/json")
             self.end_headers()
+
             res = {
                 "data": "",
                 "status": "not found"
             }
+
             return self.wfile.write(json.dumps(res).encode())
             
+    def do_PATCH(self):
+        if self.path == '/change-password':
+            content_length = int(self.headers['Content-Length']) 
+            post_data = json.loads(self.rfile.read(content_length))
+            db = open("text.txt", "r")
+
+            old_archives = db.readlines()
+            db.close()
+
+            if not old_archives:
+                old_archives = []
+            else:
+                all_text = ""
+                for text in old_archives:
+                    all_text += text
+                old_archives = json.loads(all_text)
+
+            copy = old_archives.copy()
+            for idx, user in enumerate(copy):
+                if user["registration"] == post_data["registration"]:
+                    if user["password"] == post_data["oldPassword"]:
+                        self.send_response(200)
+                        self.send_header("Content-type", "application/json")
+                        self.end_headers()
+                        
+                        copy[idx]["password"] = post_data["newPassword"]
+
+                        db = open("text.txt", "w")
+                        db.writelines(json.dumps(copy))
+                        db.close()
+                        
+                        res = {
+                            "message": "Password changed",
+                            "status": "success"
+                        }
+                        
+                        return self.wfile.write(json.dumps(res).encode())
+                    else:
+                        self.send_response(401)
+                        self.send_header("Content-type", "application/json")
+                        self.end_headers()
+
+                        res = {
+                            "message": "User not found",
+                            "status": "fail"
+                        }
+
+                        return self.wfile.write(json.dumps(res).encode())
+            db.close()
+
+            self.send_response(404)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+
+            res = {
+                "message": "Incorrect password for user",
+                "status": "fail"
+            }
+
+            return self.wfile.write(json.dumps(res).encode())
+        
 
 PORT = 8080
 
 handler = Server
 
 myserver = socketserver.TCPServer(("", PORT), handler)
-print("Server init on http://localhost:8080")
+print("Server init on http://localhost:"+str(PORT))
 
 try:
     myserver.serve_forever()
