@@ -340,9 +340,12 @@ class Server(http.server.SimpleHTTPRequestHandler):
             }
 
             return self.wfile.write(json.dumps(res).encode())
-        
+    
+    def end_headers (self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        http.server.SimpleHTTPRequestHandler.end_headers(self)
 
-PORT = 8080
+PORT = 3030
 
 handler = Server
 
