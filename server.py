@@ -75,7 +75,7 @@ class Server(http.server.SimpleHTTPRequestHandler):
             }
 
             return self.wfile.write(json.dumps(res).encode())
-
+        
     def do_POST(self):
         if self.path == '/users':
             content_length = int(self.headers['Content-Length']) 
@@ -126,7 +126,7 @@ class Server(http.server.SimpleHTTPRequestHandler):
 
                     return self.wfile.write(json.dumps(res).encode())
 
-            old_archives.append(post_data)
+            old_archives = [post_data, *old_archives]
 
             db = open("text.txt", "w")
             db.writelines(json.dumps(old_archives))
@@ -341,8 +341,17 @@ class Server(http.server.SimpleHTTPRequestHandler):
 
             return self.wfile.write(json.dumps(res).encode())
     
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.end_headers()
+        
     def end_headers (self):
         self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Credentials', 'true')
+        self.send_header('Access-Control-Max-Age', '1800')
+        self.send_header('Access-Control-Allow-Headers', 'content-type')
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Methods', 'PUT, POST, GET, DELETE, PATCH, OPTIONS')
         http.server.SimpleHTTPRequestHandler.end_headers(self)
 
 PORT = 3030
